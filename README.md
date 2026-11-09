@@ -8,6 +8,22 @@ only left/right differences, so "front left" and "rear left" sound the same.
 This is what Creative's CMSS-3D / SBX, Dolby Headphone and Windows Sonic fix on
 Windows; Linux has no equivalent out of the box.
 
+## Quick start
+
+1. Install (CachyOS, as your user, not with sudo):
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
+   ```
+
+2. Open **Spatial Audio Switcher** from the launcher.
+3. Pick a technology (start with *Dolby Atmos for Headphones*), press
+   **Preview** to hear footsteps walk around you, try a few, then **Apply**.
+4. In your game, set audio to **7.1 / Surround** and turn off in-game HRTF.
+5. Music sounds dull through surround: play it, then turn on the **Exclude**
+   switch next to the player in the **Apps** section. It is remembered.
+6. To update, run the install command again. To remove: `bash uninstall.sh`.
+
 ## How it works
 
 A PipeWire `filter-chain` sink convolves 7.1 audio with an HRIR (a recording of

@@ -6,6 +6,22 @@ How to choose, preview and switch the virtual-surround technology that games pla
 
 OS **CachyOS** · Audio **PipeWire** + WirePlumber
 
+## Quick start
+
+1. Install (as your user, not with sudo):
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
+   ```
+
+2. Open **Spatial Audio Switcher** from the launcher.
+3. Pick a technology (start with *Dolby Atmos for Headphones*), press **Preview** to hear footsteps walk around you, try a few, then **Apply**.
+4. In your game, set audio to **7.1 / Surround** and turn off in-game HRTF.
+5. Music sounds dull through surround: play it, then turn on the **Exclude** switch next to the player in the **Apps** section. It is remembered.
+6. To update, run the install command again. To remove: `bash uninstall.sh`.
+
+Details for each step are below; problems are under [Troubleshooting](#troubleshooting).
+
 ## Signal path
 
 Games send 7.1 audio to a virtual sink. The sink turns it into binaural stereo using an HRIR (a set of recorded ear responses) and sends it to your real output device: a headphone jack, a USB headset, or an HDMI monitor or receiver with headphones attached.
