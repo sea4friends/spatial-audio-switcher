@@ -154,7 +154,7 @@ pactl list short sink-inputs   # the game's line should say 8ch
 Music through the virtual sink plays from two virtual front speakers and sounds duller than plain stereo. Exclude the player once and it always plays straight to the output device, while games keep the surround.
 
 1. Start the music so the player is playing sound.
-2. In the app's **Apps** section, press **Exclude** next to it (press the refresh button if it is not listed yet).
+2. In the app's **Apps** section, press **Exclude** next to it. The list updates by itself every second.
 3. **Include** sends it back to virtual surround.
 
 The choice is stored by WirePlumber per app name, the same as moving the app to another device in the desktop's volume applet. It can be set only while virtual surround is the default output, and only for apps that are playing sound. A browser is excluded as a whole, including browser games and videos in it.

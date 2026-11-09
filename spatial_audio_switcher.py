@@ -375,16 +375,15 @@ class Window(Adw.ApplicationWindow):
         actions.add(self.spinner)
         page.add(actions)
 
-        refresh = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Refresh",
-                             valign=Gtk.Align.CENTER)
-        refresh.add_css_class("flat")
-        refresh.connect("clicked", lambda *_: self.fill_apps())
         self.apps_group = Adw.PreferencesGroup(
-            title="Apps", header_suffix=refresh,
+            title="Apps",
             description="Apps playing sound right now. Exclude music players and browsers so they play "
                         "plain stereo; the choice is remembered for the next start.")
         self.app_rows = []
+        self.apps_seen = None
         page.add(self.apps_group)
+        # ponytail: polls pactl every second while the window is open; pactl subscribe if that ever shows up
+        GLib.timeout_add_seconds(1, self.fill_apps, False)
 
         if self.state.get("hrir", "").startswith("more/"):
             self.research_row.set_active(True)  # fills the list via notify
@@ -420,15 +419,21 @@ class Window(Adw.ApplicationWindow):
         if wanted in names:
             self.output_row.set_selected(names.index(wanted))
 
-    def fill_apps(self):
-        for row in self.app_rows:
-            self.apps_group.remove(row)
-        self.app_rows = []
+    def fill_apps(self, force=True):
+        """Rebuild the Apps rows; with force=False (the 1 s timer) only when something changed."""
         try:
             apps = app_streams()
         except (subprocess.CalledProcessError, ValueError, OSError) as e:
-            apps = {}
-            self.toast(f"Cannot list apps: {e}")
+            if force:
+                self.toast(f"Cannot list apps: {e}")
+            return GLib.SOURCE_CONTINUE
+        seen = {name: excluded for name, (_, excluded) in apps.items()}
+        if not force and seen == self.apps_seen:
+            return GLib.SOURCE_CONTINUE
+        self.apps_seen = seen
+        for row in self.app_rows:
+            self.apps_group.remove(row)
+        self.app_rows = []
         if not apps:
             self.app_rows.append(Adw.ActionRow(title="No app is playing sound", sensitive=False))
         for name, (_, excluded) in sorted(apps.items(), key=lambda a: a[0].lower()):
@@ -440,6 +445,7 @@ class Window(Adw.ApplicationWindow):
             self.app_rows.append(row)
         for row in self.app_rows:
             self.apps_group.add(row)
+        return GLib.SOURCE_CONTINUE
 
     def update_hrir_note(self):
         h = self.selected_hrir()
