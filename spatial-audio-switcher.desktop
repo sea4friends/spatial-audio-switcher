@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Spatial Audio Switcher
+GenericName=Headphone Virtual Surround
+Comment=Choose, preview and apply an HRIR for PipeWire 7.1 virtual surround
+Exec=spatial-audio-switcher
+Icon=audio-headphones
+Terminal=false
+Categories=AudioVideo;Audio;Settings;HardwareSettings;
+Keywords=hrir;hesuvi;surround;spatial;atmos;headphones;pipewire;7.1;
+StartupWMClass=io.github.sergei.SpatialAudioSwitcher
