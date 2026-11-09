@@ -84,11 +84,16 @@ if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-debian"; then fail "other ID: acc
 else check "other ID: refused with CachyOS and Bazzite message" grep -q "CachyOS and Bazzite" "$WORK/out"; fi
 # only the commands the Bazzite branch looks for, minus 7z
 NOZ=$WORK/noz; mkdir "$NOZ"
-for c in python3 pactl pw-play ffmpeg ffprobe curl sha256sum tar update-desktop-database mktemp rm setsid env bash; do
+for c in python3 pactl pw-play ffmpeg ffprobe curl sha256sum tar update-desktop-database systemctl mktemp rm setsid env bash; do
   p=$(command -v "$c") && ln -s "$p" "$NOZ/$c"
 done
 if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" PATH="$STUBS:$NOZ"; then fail "bazzite: missing 7z not detected"
 else check "bazzite: missing 7z stops and names it" grep -q "Missing on this system: 7z" "$WORK/out"; fi
+# stub ffmpeg that lists no headphone filter
+FF=$WORK/noff; mkdir "$FF"; cp -P "$NOZ"/* "$FF"/; ln -sf "$(command -v 7z)" "$FF/7z"; rm "$FF/ffmpeg"
+printf '#!/bin/sh\necho " ... scale V->V"\n' > "$FF/ffmpeg"; chmod +x "$FF/ffmpeg"
+if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" PATH="$STUBS:$FF"; then fail "bazzite: missing headphone filter not detected"
+else check "bazzite: missing ffmpeg headphone filter stops and names it" grep -q "Missing on this system: ffmpeg headphone filter" "$WORK/out"; fi
 check "bazzite: missing dependency installs nothing, calls no pacman/sudo/rpm-ostree" test ! -e "$WORK/called" -a ! -e "$WORK/home4/.local"
 if [ -f "${EXE:-}" ]; then
   if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" HESUVI_EXE="$EXE" PATH="$STUBS:$PATH"; then
