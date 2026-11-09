@@ -171,6 +171,33 @@ def system_output(names):
     return current if current in names else next(iter(names), None)
 
 
+def app_streams():
+    """Apps playing sound right now: {application name: (sink-input ids, excluded)}.
+    Excluded = plays straight to a real device instead of the virtual surround sink."""
+    sinks = {s["index"]: s["name"] for s in json.loads(run(["pactl", "-f", "json", "list", "sinks"]).stdout)}
+    apps = {}
+    for s in json.loads(run(["pactl", "-f", "json", "list", "sink-inputs"]).stdout):
+        name = s["properties"].get("application.name")
+        if not name:
+            continue
+        ids, excluded = apps.get(name, ([], False))
+        apps[name] = (ids + [s["index"]], excluded or sinks.get(s["sink"]) != VIRTUAL_SINK)
+    return apps
+
+
+def set_excluded(name, excluded, output):
+    """Move an app to the real output or back to the virtual sink. WirePlumber remembers the move per
+    app; moving to the default output (the virtual sink) clears that memory, so the app follows the
+    default again. That is also why this works only while virtual surround is the default output."""
+    if default_sink() != VIRTUAL_SINK:
+        raise RuntimeError("Turn on virtual surround as the default output first")
+    ids, _ = app_streams().get(name, ([], False))
+    if not ids:
+        raise RuntimeError(f"{name} is not playing sound right now")
+    for i in ids:
+        run(["pactl", "move-sink-input", str(i), output if excluded else VIRTUAL_SINK])
+
+
 def load_state():
     try:
         return json.loads(STATE_FILE.read_text())
@@ -348,12 +375,24 @@ class Window(Adw.ApplicationWindow):
         actions.add(self.spinner)
         page.add(actions)
 
+        refresh = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Refresh",
+                             valign=Gtk.Align.CENTER)
+        refresh.add_css_class("flat")
+        refresh.connect("clicked", lambda *_: self.fill_apps())
+        self.apps_group = Adw.PreferencesGroup(
+            title="Apps", header_suffix=refresh,
+            description="Apps playing sound right now. Exclude music players and browsers so they play "
+                        "plain stereo; the choice is remembered for the next start.")
+        self.app_rows = []
+        page.add(self.apps_group)
+
         if self.state.get("hrir", "").startswith("more/"):
             self.research_row.set_active(True)  # fills the list via notify
         else:
             self.fill_hrirs()
         self.fill_sinks()
         self.refresh_status()
+        self.fill_apps()
 
     # ---- data -> widgets
     def fill_hrirs(self):
@@ -380,6 +419,27 @@ class Window(Adw.ApplicationWindow):
             wanted = system_output(names)
         if wanted in names:
             self.output_row.set_selected(names.index(wanted))
+
+    def fill_apps(self):
+        for row in self.app_rows:
+            self.apps_group.remove(row)
+        self.app_rows = []
+        try:
+            apps = app_streams()
+        except (subprocess.CalledProcessError, ValueError, OSError) as e:
+            apps = {}
+            self.toast(f"Cannot list apps: {e}")
+        if not apps:
+            self.app_rows.append(Adw.ActionRow(title="No app is playing sound", sensitive=False))
+        for name, (_, excluded) in sorted(apps.items(), key=lambda a: a[0].lower()):
+            row = Adw.ActionRow(title=GLib.markup_escape_text(name),
+                                subtitle="Excluded: plain stereo" if excluded else "Virtual surround")
+            btn = Gtk.Button(label="Include" if excluded else "Exclude", valign=Gtk.Align.CENTER)
+            btn.connect("clicked", self.on_exclude, name, not excluded)
+            row.add_suffix(btn)
+            self.app_rows.append(row)
+        for row in self.app_rows:
+            self.apps_group.add(row)
 
     def update_hrir_note(self):
         h = self.selected_hrir()
@@ -486,6 +546,14 @@ class Window(Adw.ApplicationWindow):
 
         self.in_background(work, done)
 
+    def on_exclude(self, _btn, name, excluded):
+        try:
+            set_excluded(name, excluded, self.state.get("output") or self.selected_sink())
+            self.toast(f"{name}: " + ("plain stereo" if excluded else "virtual surround"))
+        except (subprocess.CalledProcessError, RuntimeError) as e:
+            self.toast(str(getattr(e, "stderr", "") or e).strip())
+        self.fill_apps()
+
     def on_enable_toggled(self, row, _pspec):
         if getattr(self, "_syncing", False):
             return
@@ -541,6 +609,13 @@ def cli(args):
         state.update(hrir=key, output=target)
         save_state(state)
         print(f"Applied {key} -> {target}; default output is now the virtual surround sink")
+    elif cmd == "--apps":
+        for name, (_, excluded) in app_streams().items():
+            print(f"{name:40s} {'excluded: plain stereo' if excluded else 'virtual surround'}")
+    elif cmd in ("--exclude", "--include") and len(args) == 2:
+        output = state.get("output") or system_output([n for n, _ in hardware_sinks()])
+        set_excluded(args[1], cmd == "--exclude", output)
+        print(f"{args[1]}: " + ("plain stereo (remembered)" if cmd == "--exclude" else "virtual surround"))
     elif cmd == "--on":
         run(["pactl", "set-default-sink", VIRTUAL_SINK])
         print("Default output: virtual surround")
@@ -558,7 +633,8 @@ def cli(args):
         print(__doc__.strip() + """
 
 Usage: spatial-audio-switcher [--list | --outputs | --status | --on | --off
-                               | --apply HRIR [OUTPUT] | --preview HRIR|plain]
+                               | --apply HRIR [OUTPUT] | --preview HRIR|plain
+                               | --apps | --exclude APP | --include APP]
 Without arguments the settings window opens.""")
         return 0 if cmd in ("-h", "--help") else 2
     return 0
@@ -593,4 +669,6 @@ if __name__ == "__main__":
             sys.exit(cli(sys.argv[1:]))
         except subprocess.CalledProcessError as e:
             sys.exit((e.stderr or str(e)).strip())
+        except RuntimeError as e:
+            sys.exit(str(e))
     sys.exit(App().run(sys.argv))

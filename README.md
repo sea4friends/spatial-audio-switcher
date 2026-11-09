@@ -63,14 +63,21 @@ spatial-audio-switcher --preview dtshx   # hear one; "plain" = no HRIR, for comp
 spatial-audio-switcher --apply atmos     # switch
 spatial-audio-switcher --off / --on      # plain stereo (music) / virtual surround (games)
 spatial-audio-switcher --outputs         # output devices, for --apply <hrir> <output>
+spatial-audio-switcher --apps            # apps playing sound right now
+spatial-audio-switcher --exclude Spotify # this app always plays plain stereo
+spatial-audio-switcher --include Spotify # back to virtual surround
 ```
+
+**Music in plain stereo, games in surround:** in the window's *Apps* section,
+press *Exclude* next to your music player or browser while it plays. It is
+remembered per app, so there is nothing to toggle later.
 
 In games: choose **7.1 / Surround** output, and turn off any in-game HRTF and
 any surround mode of the monitor, receiver or headset, or the sound is
 processed twice.
 
 Full runbook, including troubleshooting and how to switch by hand:
-[`docs/runbook.html`](docs/runbook.html).
+[`docs/runbook.md`](docs/runbook.md).
 
 ## Installed where
 
@@ -110,7 +117,8 @@ If it shows 2ch, the game is still set to stereo.
 - **Headphone EQ.** No correction for the headphones themselves (an AutoEQ
   profile in EasyEffects does that).
 - **Stereo content.** Music through the sink plays from two virtual front
-  speakers, which sounds duller than plain stereo; use `--off` for listening.
+  speakers, which sounds duller than plain stereo; exclude the player (see
+  above) or use `--off`.
 - **Rear/front confusion.** HRIRs are measured on someone else's head. If no
   preset convincingly places sounds behind you, try the research databases in
   the app ("Include research HRIR databases").
