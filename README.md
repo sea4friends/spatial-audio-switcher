@@ -145,6 +145,14 @@ If it shows 2ch, the game is still set to stereo.
   names in the app come from community naming and the `ssc_*` presets could not
   be traced to a product.
 
+## Development
+
+`bash scripts/check.sh` runs the project checks: script syntax, `--list`, the
+installer in a throw-away HOME, a hidden GUI smoke test and the app exclude
+switch on a test stream of its own. It never touches your default output or
+`filter-chain`. Set `SAS_HESUVI_EXE` to a downloaded `HeSuVi_2.0.0.1.exe` to
+include the installer checks (they are skipped otherwise).
+
 ## License
 
 GPL-3.0-or-later, see [LICENSE](LICENSE). The HRIR files are downloaded from
