@@ -58,18 +58,40 @@ if [ ! -f "$DATA/hrir/atmos.wav" ]; then
 fi
 echo "HRIR library: $(find "$DATA/hrir" -name '*.wav' | wc -l) files in $DATA/hrir"
 
-# 4. App + launcher entry
-install -Dm755 "$HERE/spatial_audio_switcher.py" "$DATA/spatial_audio_switcher.py"
+# 4. App: install, or update an installed copy that differs (asks first)
+APP=$DATA/spatial_audio_switcher.py
+if [ ! -f "$APP" ]; then
+  install -Dm755 "$HERE/spatial_audio_switcher.py" "$APP"
+elif cmp -s "$HERE/spatial_audio_switcher.py" "$APP"; then
+  echo "Spatial Audio Switcher is already up to date."
+else
+  answer=y
+  if (exec </dev/tty) 2>/dev/null; then  # no terminal (e.g. a script): update without asking
+    read -rp "Another version of Spatial Audio Switcher is installed. Update it? [Y/n] " answer </dev/tty
+  fi
+  case $answer in
+    [nN]*) echo "Kept the installed version."; exit 0 ;;
+  esac
+  install -Dm755 "$HERE/spatial_audio_switcher.py" "$APP"
+  echo "Updated."
+  pgrep -f "$BIN/spatial-audio-switcher" >/dev/null \
+    && echo "The app is open: close and reopen its window to use the new version."
+fi
+
+# 5. Launcher entry (and removal of entries left by earlier app IDs)
+DESKTOP=$APPS/io.github.sea4friends.SpatialAudioSwitcher.desktop
 mkdir -p "$BIN" "$APPS"
-ln -sf "$DATA/spatial_audio_switcher.py" "$BIN/spatial-audio-switcher"
-sed "s|^Exec=.*|Exec=$BIN/spatial-audio-switcher|" "$HERE/spatial-audio-switcher.desktop" \
-  > "$APPS/io.github.sea4friends.SpatialAudioSwitcher.desktop"
+ln -sf "$APP" "$BIN/spatial-audio-switcher"
+for old in "$APPS"/*.SpatialAudioSwitcher.desktop; do
+  [ "$old" = "$DESKTOP" ] || rm -f "$old"
+done
+sed "s|^Exec=.*|Exec=$BIN/spatial-audio-switcher|" "$HERE/spatial-audio-switcher.desktop" > "$DESKTOP"
 update-desktop-database "$APPS" 2>/dev/null || true
 kbuildsycoca6 >/dev/null 2>&1 || true
 
-# 5. Re-apply the last used technology when settings from an earlier install are still around
+# 6. Bring the sink back after a reinstall (settings survived, sink not running); never restarts a running one
 STATE=$HOME/.config/spatial-audio-switcher/state.json
-if [ -f "$STATE" ]; then
+if [ -f "$STATE" ] && ! systemctl --user is-active -q filter-chain.service; then
   hrir=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("hrir",""))' "$STATE")
   [ -n "$hrir" ] && "$BIN/spatial-audio-switcher" --apply "$hrir"
 fi

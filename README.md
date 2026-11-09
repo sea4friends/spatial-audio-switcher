@@ -42,9 +42,11 @@ The installer:
    executed. `HESUVI_EXE=/path/to.exe` reuses an already downloaded copy;
 3. puts the app in `~/.local` and adds a launcher entry.
 
-Re-running is safe: the download is skipped once the library is there, and the
-last applied technology is re-applied if
-`~/.config/spatial-audio-switcher/state.json` survived.
+**Updating:** run the same command again. If the installed version differs, it
+asks before replacing it; if it is the same, nothing changes. The HRIR download
+is skipped once the library is there, and a running sink is never restarted.
+After a reinstall with `~/.config/spatial-audio-switcher/state.json` kept, the
+last applied technology is brought back.
 
 Removal: `bash uninstall.sh` (restores the previous default output first;
 packages are left installed).

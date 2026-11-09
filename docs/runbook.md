@@ -178,9 +178,9 @@ pactl set-default-sink effect_input.virtual-surround-7.1-hesuvi
 
 > **The app's status will be out of date** after a manual switch, because it records the applied technology itself. Run `--apply` once to bring it back in line.
 
-### Reinstall or move to another machine
+### Update, reinstall or move to another machine
 
-The installer is per-user; sudo is asked only for pacman. It installs missing packages with pacman, downloads the HeSuVi collection (26 MB, checksum verified) and extracts only its HRIR files; nothing from the Windows installer is run.
+The installer is per-user; sudo is asked only for pacman. It installs missing packages with pacman, downloads the HeSuVi collection (26 MB, checksum verified) and extracts only its HRIR files; nothing from the Windows installer is run. Run again to update: it asks before replacing a different installed version.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
