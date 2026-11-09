@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Spatial Audio Switcher installer for CachyOS. Run as your user, not with sudo:
 #   bash install.sh
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/spatial-audio-switcher/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
 # Installs missing packages with pacman (asks for your password via sudo), downloads the HeSuVi
 # HRIR collection and puts the app in ~/.local. Re-running is safe.
 set -euo pipefail
-REPO=https://github.com/OWNER/spatial-audio-switcher
+REPO=https://github.com/sea4friends/spatial-audio-switcher
 SRC_TARBALL=${SAS_SRC:-$REPO/archive/refs/heads/main.tar.gz}
 HESUVI_URL=https://sourceforge.net/projects/hesuvi/files/HeSuVi_2.0.0.1.exe/download
 HESUVI_SHA256=a31774714d8f7a87ae4fd5bdbaa4bfa294a808296bdcc9e9935da4b427a601ba
@@ -63,7 +63,7 @@ install -Dm755 "$HERE/spatial_audio_switcher.py" "$DATA/spatial_audio_switcher.p
 mkdir -p "$BIN" "$APPS"
 ln -sf "$DATA/spatial_audio_switcher.py" "$BIN/spatial-audio-switcher"
 sed "s|^Exec=.*|Exec=$BIN/spatial-audio-switcher|" "$HERE/spatial-audio-switcher.desktop" \
-  > "$APPS/io.github.sergei.SpatialAudioSwitcher.desktop"
+  > "$APPS/io.github.sea4friends.SpatialAudioSwitcher.desktop"
 update-desktop-database "$APPS" 2>/dev/null || true
 kbuildsycoca6 >/dev/null 2>&1 || true
 

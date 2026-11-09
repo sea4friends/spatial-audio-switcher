@@ -8,4 +8,4 @@ Icon=audio-headphones
 Terminal=false
 Categories=AudioVideo;Audio;Settings;HardwareSettings;
 Keywords=hrir;hesuvi;surround;spatial;atmos;headphones;pipewire;7.1;
-StartupWMClass=io.github.sergei.SpatialAudioSwitcher
+StartupWMClass=io.github.sea4friends.SpatialAudioSwitcher

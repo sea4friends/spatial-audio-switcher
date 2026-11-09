@@ -27,7 +27,7 @@ through any of them for A/B comparison before applying one.
 CachyOS only. Run as your user, **without** sudo:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/OWNER/spatial-audio-switcher/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
 ```
 
 or from a clone: `bash install.sh`.
@@ -78,7 +78,7 @@ Full runbook, including troubleshooting and how to switch by hand:
 |---|---|
 | `~/.local/share/spatial-audio-switcher/` | app + HRIR library (312 files, ~33 MB) |
 | `~/.local/bin/spatial-audio-switcher` | symlink for the CLI |
-| `~/.local/share/applications/io.github.sergei.SpatialAudioSwitcher.desktop` | launcher entry |
+| `~/.local/share/applications/io.github.sea4friends.SpatialAudioSwitcher.desktop` | launcher entry |
 | `~/.config/pipewire/filter-chain.conf.d/sink-virtual-surround.conf` | sink definition, regenerated on every Apply |
 | `~/.config/pipewire/hrir/current.wav` | the applied HRIR (always 14-channel) |
 | `~/.config/spatial-audio-switcher/state.json` | applied technology + output device |

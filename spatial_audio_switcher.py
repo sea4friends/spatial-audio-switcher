@@ -21,7 +21,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-APP_ID = "io.github.sergei.SpatialAudioSwitcher"
+APP_ID = "io.github.sea4friends.SpatialAudioSwitcher"
 HOME = Path.home()
 DATA = HOME / ".local/share/spatial-audio-switcher"
 LIBRARY = DATA / "hrir"

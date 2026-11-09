@@ -219,7 +219,7 @@ pactl set-default-sink effect_input.virtual-surround-7.1-hesuvi</pre></div>
     <div class="proc">
       <h3>Reinstall or move to another machine</h3>
       <p>The installer is per-user; sudo is asked only for pacman. It installs missing packages with pacman, downloads the HeSuVi collection (26 MB, checksum verified) and extracts only its HRIR files; nothing from the Windows installer is run.</p>
-      <div class="cmd"><pre>curl -fsSL https://raw.githubusercontent.com/OWNER/spatial-audio-switcher/main/install.sh | bash</pre></div>
+      <div class="cmd"><pre>curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash</pre></div>
     </div>
     <div class="proc">
       <h3>Remove everything</h3>
@@ -227,7 +227,7 @@ pactl set-default-sink effect_input.virtual-surround-7.1-hesuvi</pre></div>
 systemctl --user disable --now filter-chain.service
 rm ~/.config/pipewire/filter-chain.conf.d/sink-virtual-surround.conf ~/.config/pipewire/hrir/current.wav
 rm -r ~/.local/share/spatial-audio-switcher ~/.cache/spatial-audio-switcher ~/.config/spatial-audio-switcher
-rm ~/.local/bin/spatial-audio-switcher ~/.local/share/applications/io.github.sergei.SpatialAudioSwitcher.desktop</pre></div>
+rm ~/.local/bin/spatial-audio-switcher ~/.local/share/applications/io.github.sea4friends.SpatialAudioSwitcher.desktop</pre></div>
     </div>
   </div>
 </section>

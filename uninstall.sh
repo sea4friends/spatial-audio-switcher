@@ -22,7 +22,7 @@ rmdir --ignore-fail-on-non-empty "$HOME/.config/pipewire/filter-chain.conf.d" \
 # 3. Remove app, HRIR library, launcher entry, caches and settings
 rm -rf "$DATA" "$HOME/.cache/spatial-audio-switcher" "$HOME/.config/spatial-audio-switcher"
 rm -f "$HOME/.local/bin/spatial-audio-switcher" \
-      "$HOME/.local/share/applications/io.github.sergei.SpatialAudioSwitcher.desktop"
+      "$HOME/.local/share/applications/io.github.sea4friends.SpatialAudioSwitcher.desktop"
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 kbuildsycoca6 >/dev/null 2>&1 || true
 
