@@ -22,7 +22,8 @@ Windows; Linux has no equivalent out of the box.
 4. In your game, set audio to **7.1 / Surround** and turn off in-game HRTF.
 5. Music sounds dull through surround: play it, then turn on the **Exclude**
    switch next to the player in the **Apps** section. It is remembered.
-6. To update, run the install command again. To remove: `bash uninstall.sh`.
+6. To update, run the install command again. To remove:
+   `curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/uninstall.sh | bash`
 
 ## How it works
 
@@ -64,7 +65,7 @@ is skipped once the library is there, and a running sink is never restarted.
 After a reinstall with `~/.config/spatial-audio-switcher/state.json` kept, the
 last applied technology is brought back.
 
-Removal: `bash uninstall.sh` (restores the previous default output first;
+Removal: `curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/uninstall.sh | bash`, or `bash uninstall.sh` from a clone (restores the previous default output first;
 packages are left installed).
 
 ## Use

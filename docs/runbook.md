@@ -18,7 +18,7 @@ OS **CachyOS** · Audio **PipeWire** + WirePlumber
 3. Pick a technology (start with *Dolby Atmos for Headphones*), press **Preview** to hear footsteps walk around you, try a few, then **Apply**.
 4. In your game, set audio to **7.1 / Surround** and turn off in-game HRTF.
 5. Music sounds dull through surround: play it, then turn on the **Exclude** switch next to the player in the **Apps** section. It is remembered.
-6. To update, run the install command again. To remove: `bash uninstall.sh`.
+6. To update, run the install command again. To remove: `curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/uninstall.sh | bash`
 
 Details for each step are below; problems are under [Troubleshooting](#troubleshooting).
 
