@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Project check: bash scripts/check.sh   (exit 0 = pass, ~1-2 min)
+# Project check: bash scripts/check.sh   (exit 0 = pass, ~7 s)
 # Safe for a live desktop: installs only into a throw-away HOME, runs the GUI on a virtual X server
 # and touches only its own test stream (client name SASCheck). Never runs --apply/--on/--off, never
 # restarts filter-chain, never changes the default sink.
@@ -16,7 +16,16 @@ check() { local what=$1; shift; if "$@" >/dev/null 2>&1; then pass "$what"; else
 
 WORK=$(mktemp -d "${SAS_SCRATCH:-${TMPDIR:-/tmp}}/sas-check.XXXXXX")
 TESTPID=
-cleanup() { [ -z "$TESTPID" ] || kill "$TESTPID" 2>/dev/null; rm -rf "$WORK"; }
+PINS=$HOME/.local/state/wireplumber/stream-properties
+# a run that died between "exclude on" and "exclude off" leaves a SASCheck pin; the stream is gone then, so just report it
+stale_pin() { grep -q '^Output/Audio:application.name:SASCheck=.*"target"' "$PINS" 2>/dev/null; }
+cleanup() {
+  [ -z "$TESTPID" ] || kill "$TESTPID" 2>/dev/null
+  if stale_pin; then
+    echo "NOTE  a SASCheck pin is left in $PINS (run died mid exclude round trip); remove the SASCheck line to clear it"
+  fi
+  rm -rf "$WORK"
+}
 trap cleanup EXIT
 EXE=${SAS_HESUVI_EXE:-}
 APPPY=$REPO/spatial_audio_switcher.py
@@ -66,12 +75,33 @@ if [ ! -f "${EXE:-}" ]; then skip "install checks: no HeSuVi exe (set SAS_HESUVI
   else fail "install: curl|bash path"; cat "$WORK/out"; fi
 fi
 
+# 3b. Bazzite / other distros: fake os-release in a sandbox, pacman/sudo/rpm-ostree stubbed to record any call
+printf 'ID=bazzite\n' > "$WORK/os-bazzite"; printf 'ID=debian\n' > "$WORK/os-debian"
+STUBS=$WORK/stubs; mkdir "$STUBS"
+for c in pacman sudo rpm-ostree; do printf '#!/bin/sh\necho "%s $*" >> "%s/called"\nexit 1\n' "$c" "$WORK" > "$STUBS/$c"; chmod +x "$STUBS/$c"; done
+mkdir "$WORK/home4"
+if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-debian"; then fail "other ID: accepted"
+else check "other ID: refused with CachyOS and Bazzite message" grep -q "CachyOS and Bazzite" "$WORK/out"; fi
+# only the commands the Bazzite branch looks for, minus 7z
+NOZ=$WORK/noz; mkdir "$NOZ"
+for c in python3 pactl pw-play ffmpeg ffprobe curl sha256sum tar update-desktop-database mktemp rm setsid env bash; do
+  p=$(command -v "$c") && ln -s "$p" "$NOZ/$c"
+done
+if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" PATH="$STUBS:$NOZ"; then fail "bazzite: missing 7z not detected"
+else check "bazzite: missing 7z stops and names it" grep -q "Missing on this system: 7z" "$WORK/out"; fi
+check "bazzite: missing dependency installs nothing, calls no pacman/sudo/rpm-ostree" test ! -e "$WORK/called" -a ! -e "$WORK/home4/.local"
+if [ -f "${EXE:-}" ]; then
+  if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" HESUVI_EXE="$EXE" PATH="$STUBS:$PATH"; then
+    check "bazzite: installs when everything is present" test -L "$WORK/home4/.local/bin/spatial-audio-switcher"
+    check "bazzite: no pacman/sudo/rpm-ostree called" test ! -e "$WORK/called"
+  else fail "bazzite: install with all dependencies present"; cat "$WORK/out"; fi
+else skip "bazzite: full install (no HeSuVi exe)"; fi
+
 # 4+5. GUI smoke and exclude round trip on a virtual X server, test stream SASCheck only
 if [ ! -d "$HOME/.local/share/spatial-audio-switcher/hrir" ]; then skip "GUI checks: HRIR library not installed"
-elif ! command -v xvfb-run >/dev/null || ! command -v paplay >/dev/null; then skip "GUI checks: xvfb-run or paplay missing"
+elif ! command -v xvfb-run >/dev/null || ! command -v paplay >/dev/null || ! command -v ffmpeg >/dev/null; then skip "GUI checks: xvfb-run, paplay or ffmpeg missing"
 else
   ffmpeg -loglevel error -f lavfi -i anullsrc=r=48000:cl=stereo -t 40 "$WORK/silence.wav"
-  PINS=$HOME/.local/state/wireplumber/stream-properties
   paplay --client-name=SASCheck "$WORK/silence.wav" & TESTPID=$!
   # the exclude round trip moves the stream to the real output, which only works with surround as default
   if [ "$(pactl get-default-sink)" = effect_input.virtual-surround-7.1-hesuvi ]; then EXCL=1; else EXCL=0; fi

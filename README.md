@@ -1,6 +1,6 @@
 # Spatial Audio Switcher
 
-HRIR virtual surround for headphones on CachyOS (PipeWire), with a GTK 4
+HRIR virtual surround for headphones on CachyOS and Bazzite (PipeWire), with a GTK 4
 settings window and a CLI.
 
 Games on headphones usually sound flat: a 7.1 mix folded down to stereo keeps
@@ -10,7 +10,7 @@ Windows; Linux has no equivalent out of the box.
 
 ## Quick start
 
-1. Install (CachyOS, as your user, not with sudo):
+1. Install (CachyOS or Bazzite, as your user, not with sudo):
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
@@ -41,7 +41,7 @@ through any of them for A/B comparison before applying one.
 
 ## Install
 
-CachyOS only. Run as your user, **without** sudo:
+CachyOS and Bazzite. Run as your user, **without** sudo:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
@@ -51,9 +51,12 @@ or from a clone: `bash install.sh`.
 
 The installer:
 
-1. installs missing packages with `pacman` (asks for your password via sudo):
+1. on CachyOS, installs missing packages with `pacman` (asks for your password via sudo):
    `python python-gobject gtk4 libadwaita pipewire pipewire-audio pipewire-pulse
-   wireplumber libpulse ffmpeg curl 7zip alsa-utils desktop-file-utils`;
+   wireplumber libpulse ffmpeg curl 7zip alsa-utils desktop-file-utils`.
+   On Bazzite nothing is installed system-wide and no reboot is needed: everything
+   the app uses already ships with it, so the installer only checks that it is
+   there and stops with a message naming anything missing;
 2. downloads HeSuVi 2.0.0.1 (26 MB) from SourceForge, checks its SHA-256 and
    extracts only the HRIR `.wav` files; nothing from that Windows installer is
    executed. `HESUVI_EXE=/path/to.exe` reuses an already downloaded copy;
