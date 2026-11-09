@@ -375,8 +375,10 @@ class Window(Adw.ApplicationWindow):
         actions.add(self.spinner)
         page.add(actions)
 
+        exclude_label = Gtk.Label(label="Exclude", valign=Gtk.Align.END)
+        exclude_label.add_css_class("dim-label")
         self.apps_group = Adw.PreferencesGroup(
-            title="Apps",
+            title="Apps", header_suffix=exclude_label,
             description="Apps playing sound right now. Exclude music players and browsers so they play "
                         "plain stereo; the choice is remembered for the next start.")
         self.app_rows = []
@@ -437,11 +439,9 @@ class Window(Adw.ApplicationWindow):
         if not apps:
             self.app_rows.append(Adw.ActionRow(title="No app is playing sound", sensitive=False))
         for name, (_, excluded) in sorted(apps.items(), key=lambda a: a[0].lower()):
-            row = Adw.ActionRow(title=GLib.markup_escape_text(name),
-                                subtitle="Excluded: plain stereo" if excluded else "Virtual surround")
-            btn = Gtk.Button(label="Include" if excluded else "Exclude", valign=Gtk.Align.CENTER)
-            btn.connect("clicked", self.on_exclude, name, not excluded)
-            row.add_suffix(btn)
+            row = Adw.SwitchRow(title=GLib.markup_escape_text(name), active=excluded,
+                                subtitle="Plain stereo" if excluded else "Virtual surround")
+            row.connect("notify::active", self.on_exclude, name)
             self.app_rows.append(row)
         for row in self.app_rows:
             self.apps_group.add(row)
@@ -552,13 +552,15 @@ class Window(Adw.ApplicationWindow):
 
         self.in_background(work, done)
 
-    def on_exclude(self, _btn, name, excluded):
+    def on_exclude(self, row, _pspec, name):
+        excluded = row.get_active()
         try:
             set_excluded(name, excluded, self.state.get("output") or self.selected_sink())
             self.toast(f"{name}: " + ("plain stereo" if excluded else "virtual surround"))
         except (subprocess.CalledProcessError, RuntimeError) as e:
             self.toast(str(getattr(e, "stderr", "") or e).strip())
-        self.fill_apps()
+        # rebuild from the real state (flips the switch back on failure); not inside the row's own signal
+        GLib.idle_add(lambda: self.fill_apps() and False)
 
     def on_enable_toggled(self, row, _pspec):
         if getattr(self, "_syncing", False):

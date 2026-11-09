@@ -69,7 +69,7 @@ spatial-audio-switcher --include Spotify # back to virtual surround
 ```
 
 **Music in plain stereo, games in surround:** in the window's *Apps* section,
-press *Exclude* next to your music player or browser while it plays. It is
+turn on the *Exclude* switch next to your music player or browser while it plays. It is
 remembered per app, so there is nothing to toggle later.
 
 In games: choose **7.1 / Surround** output, and turn off any in-game HRTF and
