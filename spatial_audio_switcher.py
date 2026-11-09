@@ -19,7 +19,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Adw, Gio, GLib, Gtk, Pango  # noqa: E402
 
 APP_ID = "io.github.sea4friends.SpatialAudioSwitcher"
 HOME = Path.home()
@@ -305,6 +305,22 @@ def render_plain_stereo():
     return out
 
 
+def wide_factory(width_chars, max_width_chars):
+    """Dropdown labels wider than the default (which cuts HRIR names short), full name as a tooltip."""
+    factory = Gtk.SignalListItemFactory()
+    factory.connect("setup", lambda _f, item: item.set_child(
+        Gtk.Label(xalign=0, width_chars=width_chars, max_width_chars=max_width_chars,
+                  ellipsize=Pango.EllipsizeMode.END)))
+
+    def bind(_f, item):
+        text = item.get_item().get_string()
+        item.get_child().set_label(text)
+        item.get_child().set_tooltip_text(text)
+
+    factory.connect("bind", bind)
+    return factory
+
+
 class Window(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="Spatial Audio Switcher")
@@ -345,6 +361,8 @@ class Window(Adw.ApplicationWindow):
         tech.add(self.research_row)
         self.hrir_row = Adw.ComboRow(title="HRIR", enable_search=True)
         self.hrir_row.set_expression(Gtk.PropertyExpression.new(Gtk.StringObject, None, "string"))
+        self.hrir_row.set_factory(wide_factory(-1, 40))  # the selected value in the row
+        self.hrir_row.set_list_factory(wide_factory(50, 60))  # the popup list
         self.hrir_row.connect("notify::selected", lambda *_: self.update_hrir_note())
         tech.add(self.hrir_row)
         self.output_row = Adw.ComboRow(title="Output device",
