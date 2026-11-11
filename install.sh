@@ -1,10 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Spatial Audio Switcher installer for CachyOS and Bazzite. Run as your user, not with sudo:
+# Spatial Audio Switcher installer for CachyOS. Run as your user, not with sudo:
 #   bash install.sh
 #   curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
-# On CachyOS installs missing packages with pacman (asks for your password via sudo); on Bazzite
-# installs nothing system-wide and only checks that what it needs is there. Downloads the HeSuVi
+# Installs missing packages with pacman (asks for your password via sudo), downloads the HeSuVi
 # HRIR collection and puts the app in ~/.local. Re-running is safe.
 set -euo pipefail
 REPO=https://github.com/sea4friends/spatial-audio-switcher
@@ -13,42 +12,23 @@ HESUVI_URL=https://sourceforge.net/projects/hesuvi/files/HeSuVi_2.0.0.1.exe/down
 HESUVI_SHA256=a31774714d8f7a87ae4fd5bdbaa4bfa294a808296bdcc9e9935da4b427a601ba
 PACKAGES=(python python-gobject gtk4 libadwaita pipewire pipewire-audio pipewire-pulse wireplumber
           libpulse ffmpeg curl 7zip alsa-utils desktop-file-utils)
-# Bazzite already ships all of these; checked instead of installed (command names, then files)
-BAZZITE_CMDS=(python3 pactl pw-play ffmpeg ffprobe 7z curl sha256sum tar update-desktop-database systemctl)
-BAZZITE_FILES=(/usr/share/pipewire/filter-chain/sink-virtual-surround-7.1-hesuvi.conf
-               /usr/lib/systemd/user/filter-chain.service /usr/share/sounds/alsa/Front_Left.wav)
 DATA=$HOME/.local/share/spatial-audio-switcher
 BIN=$HOME/.local/bin
 APPS=$HOME/.local/share/applications
 die() { echo "$*" >&2; exit 1; }
 
-[ "$EUID" -ne 0 ] || die "Run without sudo: everything goes to your home folder; sudo is asked only for pacman on CachyOS."
+[ "$EUID" -ne 0 ] || die "Run without sudo: everything goes to your home folder; sudo is asked only for pacman."
 # shellcheck source=/dev/null
 ID=$(. "${SAS_OS_RELEASE:-/etc/os-release}" && echo "$ID")  # SAS_OS_RELEASE: for tests only
-case $ID in cachyos|bazzite) ;; *) die "This installer is for CachyOS and Bazzite only (found: $ID)." ;; esac
+[ "$ID" = cachyos ] || die "This installer is for CachyOS only (found: $ID)."
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
 # 1. Packages
-if [ "$ID" = bazzite ]; then
-  missing=
-  for c in "${BAZZITE_CMDS[@]}"; do command -v "$c" >/dev/null || missing="$missing $c"; done
-  python3 -c 'import gi; gi.require_version("Gtk","4.0"); gi.require_version("Adw","1")' 2>/dev/null \
-    || missing="$missing python3-gobject/GTK4/libadwaita"
-  # grep -q exits early; capture first so ffmpeg never takes a SIGPIPE under pipefail
-  if command -v ffmpeg >/dev/null; then
-    filters=$(ffmpeg -hide_banner -filters 2>/dev/null || true)
-    grep -qw headphone <<<"$filters" || missing="$missing ffmpeg headphone filter"
-  fi
-  for f in "${BAZZITE_FILES[@]}"; do [ -e "$f" ] || missing="$missing $f"; done
-  [ -z "$missing" ] || die "Missing on this system:$missing
-Bazzite normally ships these; nothing was installed. Update Bazzite and run this again."
-else
-  missing=$(pacman -T "${PACKAGES[@]}" || true)
-  if [ -n "$missing" ]; then
-    echo "Installing packages: $missing"
-    # shellcheck disable=SC2086  # one word per package
-    sudo pacman -S --needed $missing </dev/tty
-  fi
+missing=$(pacman -T "${PACKAGES[@]}" || true)
+if [ -n "$missing" ]; then
+  echo "Installing packages: $missing"
+  # shellcheck disable=SC2086  # one word per package
+  sudo pacman -S --needed $missing </dev/tty
 fi
 
 # 2. App sources: next to this script, or downloaded when run as curl | bash

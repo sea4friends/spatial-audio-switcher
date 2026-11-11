@@ -4,7 +4,7 @@
 
 How to choose, preview and switch the virtual-surround technology that games play through, and how to recover when audio goes wrong.
 
-OS **CachyOS** and **Bazzite** · Audio **PipeWire** + WirePlumber
+OS **CachyOS** · Audio **PipeWire** + WirePlumber
 
 ## Quick start
 
@@ -196,7 +196,7 @@ pactl set-default-sink effect_input.virtual-surround-7.1-hesuvi
 
 ### Update, reinstall or move to another machine
 
-The installer is per-user; sudo is asked only for pacman, on CachyOS. There it installs missing packages with pacman; on Bazzite nothing is installed system-wide and no reboot is needed (it only checks that the needed tools are present). It downloads the HeSuVi collection (26 MB, checksum verified) and extracts only its HRIR files; nothing from the Windows installer is run. Run again to update: it asks before replacing a different installed version.
+The installer is per-user; sudo is asked only for pacman. It installs missing packages with pacman, downloads the HeSuVi collection (26 MB, checksum verified) and extracts only its HRIR files; nothing from the Windows installer is run. Run again to update: it asks before replacing a different installed version.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sea4friends/spatial-audio-switcher/main/install.sh | bash
@@ -238,4 +238,4 @@ rm ~/.local/bin/spatial-audio-switcher ~/.local/share/applications/io.github.sea
 
 ---
 
-HRIRs from HeSuVi 2.0.0.1 (sourceforge.net/projects/hesuvi). Uses only CachyOS/Bazzite packages: python-gobject, GTK 4, libadwaita, ffmpeg, PipeWire. Licensed GPL-3.0-or-later.
+HRIRs from HeSuVi 2.0.0.1 (sourceforge.net/projects/hesuvi). Uses only CachyOS packages: python-gobject, GTK 4, libadwaita, ffmpeg, PipeWire. Licensed GPL-3.0-or-later.

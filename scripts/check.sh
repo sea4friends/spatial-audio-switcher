@@ -79,32 +79,14 @@ if [ ! -f "${EXE:-}" ]; then skip "install checks: no HeSuVi exe (set SAS_HESUVI
   else fail "install: curl|bash path"; cat "$WORK/out"; fi
 fi
 
-# 3b. Bazzite / other distros: fake os-release in a sandbox, pacman/sudo/rpm-ostree stubbed to record any call
-printf 'ID=bazzite\n' > "$WORK/os-bazzite"; printf 'ID=debian\n' > "$WORK/os-debian"
+# 3b. other distros are refused: fake os-release, pacman/sudo stubbed to record any call
+printf 'ID=debian\n' > "$WORK/os-debian"
 STUBS=$WORK/stubs; mkdir "$STUBS"
-for c in pacman sudo rpm-ostree; do printf '#!/bin/sh\necho "%s $*" >> "%s/called"\nexit 1\n' "$c" "$WORK" > "$STUBS/$c"; chmod +x "$STUBS/$c"; done
+for c in pacman sudo; do printf '#!/bin/sh\necho "%s $*" >> "%s/called"\nexit 1\n' "$c" "$WORK" > "$STUBS/$c"; chmod +x "$STUBS/$c"; done
 mkdir "$WORK/home4"
-if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-debian"; then fail "other ID: accepted"
-else check "other ID: refused with CachyOS and Bazzite message" grep -q "CachyOS and Bazzite" "$WORK/out"; fi
-# only the commands the Bazzite branch looks for, minus 7z
-NOZ=$WORK/noz; mkdir "$NOZ"
-for c in python3 pactl pw-play ffmpeg ffprobe curl sha256sum tar update-desktop-database systemctl mktemp rm setsid env bash; do
-  p=$(command -v "$c") && ln -s "$p" "$NOZ/$c"
-done
-if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" PATH="$STUBS:$NOZ"; then fail "bazzite: missing 7z not detected"
-else check "bazzite: missing 7z stops and names it" grep -q "Missing on this system: 7z" "$WORK/out"; fi
-# stub ffmpeg that lists no headphone filter
-FF=$WORK/noff; mkdir "$FF"; cp -P "$NOZ"/* "$FF"/; ln -sf "$(command -v 7z)" "$FF/7z"; rm "$FF/ffmpeg"
-printf '#!/bin/sh\necho " ... scale V->V"\n' > "$FF/ffmpeg"; chmod +x "$FF/ffmpeg"
-if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" PATH="$STUBS:$FF"; then fail "bazzite: missing headphone filter not detected"
-else check "bazzite: missing ffmpeg headphone filter stops and names it" grep -q "Missing on this system: ffmpeg headphone filter" "$WORK/out"; fi
-check "bazzite: missing dependency installs nothing, calls no pacman/sudo/rpm-ostree" test ! -e "$WORK/called" -a ! -e "$WORK/home4/.local"
-if [ -f "${EXE:-}" ]; then
-  if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-bazzite" HESUVI_EXE="$EXE" PATH="$STUBS:$PATH"; then
-    check "bazzite: installs when everything is present" test -L "$WORK/home4/.local/bin/spatial-audio-switcher"
-    check "bazzite: no pacman/sudo/rpm-ostree called" test ! -e "$WORK/called"
-  else fail "bazzite: install with all dependencies present"; cat "$WORK/out"; fi
-else skip "bazzite: full install (no HeSuVi exe)"; fi
+if inst "$WORK/home4" SAS_OS_RELEASE="$WORK/os-debian" PATH="$STUBS:$PATH"; then fail "other ID: accepted"
+else check "other ID: refused with CachyOS-only message" grep -q "CachyOS only (found: debian)" "$WORK/out"; fi
+check "other ID: nothing installed, no pacman/sudo called" test ! -e "$WORK/called" -a ! -e "$WORK/home4/.local"
 
 # 4+5. GUI smoke and exclude round trip on a virtual X server, test stream SASCheck only
 if [ ! -d "$HOME/.local/share/spatial-audio-switcher/hrir" ]; then skip "GUI checks: HRIR library not installed"
