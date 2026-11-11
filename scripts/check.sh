@@ -17,14 +17,16 @@ check() { local what=$1; shift; if "$@" >/dev/null 2>&1; then pass "$what"; else
 WORK=$(mktemp -d "${SAS_SCRATCH:-${TMPDIR:-/tmp}}/sas-check.XXXXXX")
 TESTPID=
 DEVPID=
+SPPID=
 PINS=$HOME/.local/state/wireplumber/stream-properties
 # a run that died between "exclude on" and "exclude off" leaves a SASCheck pin; the stream is gone then, so just report it
-stale_pin() { grep -q '^Output/Audio:application.name:SASCheck=.*"target"' "$PINS" 2>/dev/null; }
+stale_pin() { grep -q '^Output/Audio:application.name:SAS\(\\s\)\?Check\(\\sSp\)\?=.*"target"' "$PINS" 2>/dev/null; }
 cleanup() {
   [ -z "$TESTPID" ] || kill "$TESTPID" 2>/dev/null
   [ -z "$DEVPID" ] || kill "$DEVPID" 2>/dev/null
+  [ -z "$SPPID" ] || kill "$SPPID" 2>/dev/null
   if stale_pin; then
-    echo "NOTE  a SASCheck pin is left in $PINS (run died mid exclude round trip); remove the SASCheck line to clear it"
+    echo "NOTE  a SASCheck pin is left in $PINS (run died mid exclude round trip); remove the SASCheck / SAS\\sCheck\\sSp line to clear it"
   fi
   rm -rf "$WORK"
 }
@@ -110,6 +112,8 @@ elif ! command -v xvfb-run >/dev/null || ! command -v paplay >/dev/null || ! com
 else
   ffmpeg -loglevel error -f lavfi -i anullsrc=r=48000:cl=stereo -t 40 "$WORK/silence.wav"
   paplay --client-name=SASCheck "$WORK/silence.wav" & TESTPID=$!
+  # a name with a space: WirePlumber stores it escaped (SAS\sCheck\sSp) and the app must decode it
+  paplay --client-name="SAS Check Sp" "$WORK/silence.wav" & SPPID=$!
   # a second stream started on a real device by the player itself (never moved by us): not excluded, no pin
   DEVSINK=$(pactl list short sinks | awk '$2 !~ /^(effect_|input\.|output\.)/ {print $2; exit}')
   if [ -n "$DEVSINK" ]; then paplay --client-name=SASCheckDev --device="$DEVSINK" "$WORK/silence.wav" & DEVPID=$!; fi
@@ -142,6 +146,7 @@ def row(name="SASCheck"):
     return next((r for r in win.app_rows if r.get_title() == name), None)
 
 def pinned(name="SASCheck"):
+    name = name.replace(" ", "\\s")
     try: return any(l.startswith("Output/Audio:application.name:" + name + "=") and '"target"' in l
                     for l in open(os.environ["PINS"]))
     except OSError: return False
@@ -183,6 +188,19 @@ if os.environ["EXCL"] == "1" and row():
     result(wait(lambda: not pinned(), 6), "exclude off: pin cleared")
     result(wait(lambda: row() is not None and not row().get_active() and row().get_subtitle() == "Virtual surround", 4),
            "exclude off: switch off, subtitle says Virtual surround")
+    sp = "SAS Check Sp"
+    if wait(lambda: row(sp), 4):
+        row(sp).set_active(True)
+        result(wait(lambda: pinned(sp), 6), "exclude on (name with space): pinned in WirePlumber state")
+        result(wait(lambda: row(sp) is not None and row(sp).get_active()
+                    and (row(sp).get_subtitle() or "").startswith("Excluded: plain stereo on "), 4),
+               "exclude on (name with space): switch on, subtitle says Excluded")
+        row(sp).set_active(False)
+        result(wait(lambda: not pinned(sp), 6), "exclude off (name with space): pin cleared")
+        result(wait(lambda: row(sp) is not None and not row(sp).get_active() and row(sp).get_subtitle() == "Virtual surround", 4),
+               "exclude off (name with space): switch off, subtitle says Virtual surround")
+    else:
+        result(False, "GUI: Apps shows a row for the name-with-space stream")
 else:
     print("SKIP  exclude round trip: surround is not the default output (or no SASCheck row)")
 sys.exit(0 if ok else 1)
@@ -191,6 +209,7 @@ PY
   [ $rc -eq 0 ] || FAILS=$((FAILS+1))
   kill "$TESTPID" 2>/dev/null; wait "$TESTPID" 2>/dev/null; TESTPID=
   [ -z "$DEVPID" ] || { kill "$DEVPID" 2>/dev/null; wait "$DEVPID" 2>/dev/null; DEVPID=; }
+  kill "$SPPID" 2>/dev/null; wait "$SPPID" 2>/dev/null; SPPID=
 fi
 
 [ $FAILS -eq 0 ] && echo "ALL CHECKS PASSED" || echo "$FAILS CHECK(S) FAILED"

@@ -7,6 +7,7 @@ Uses only system packages: python-gobject (GTK 4 + libadwaita), ffmpeg, pipewire
 import csv
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -173,11 +174,14 @@ def system_output(names):
 
 PINS_FILE = Path.home() / ".local/state/wireplumber/stream-properties"
 PIN_PREFIX = "Output/Audio:application.name:"
+PIN_ESC = {"s": " ", "t": "\t", "n": "\n", "r": "\r", "\\": "\\"}
 
 
 def pinned_apps():
     """Names of apps WirePlumber has a per-app target for (what moving an app to a device leaves behind).
-    A line is PREFIX<app name>={json}; the name may contain '=' or ':' so split at the '={'."""
+    A line is PREFIX<app name>={json}; the name may contain '=' or ':' so split at the '={'.
+    The name is stored GKeyFile-escaped (a space is written \\s), so decode it. Names with non-UTF-8 bytes
+    show up as mojibake keys and may not match: such an app shows as not pinned (safe direction)."""
     names = set()
     try:
         lines = PINS_FILE.read_text(errors="replace").splitlines()
@@ -188,7 +192,7 @@ def pinned_apps():
             name, _, js = line[len(PIN_PREFIX):].partition("={")
             try:
                 if json.loads("{" + js).get("target"):
-                    names.add(name)
+                    names.add(re.sub(r"\\(.)", lambda m: PIN_ESC.get(m[1], m[0]), name))
             except ValueError:
                 pass
     return names
