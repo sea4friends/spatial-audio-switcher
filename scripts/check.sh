@@ -16,11 +16,13 @@ check() { local what=$1; shift; if "$@" >/dev/null 2>&1; then pass "$what"; else
 
 WORK=$(mktemp -d "${SAS_SCRATCH:-${TMPDIR:-/tmp}}/sas-check.XXXXXX")
 TESTPID=
+DEVPID=
 PINS=$HOME/.local/state/wireplumber/stream-properties
 # a run that died between "exclude on" and "exclude off" leaves a SASCheck pin; the stream is gone then, so just report it
 stale_pin() { grep -q '^Output/Audio:application.name:SASCheck=.*"target"' "$PINS" 2>/dev/null; }
 cleanup() {
   [ -z "$TESTPID" ] || kill "$TESTPID" 2>/dev/null
+  [ -z "$DEVPID" ] || kill "$DEVPID" 2>/dev/null
   if stale_pin; then
     echo "NOTE  a SASCheck pin is left in $PINS (run died mid exclude round trip); remove the SASCheck line to clear it"
   fi
@@ -108,9 +110,12 @@ elif ! command -v xvfb-run >/dev/null || ! command -v paplay >/dev/null || ! com
 else
   ffmpeg -loglevel error -f lavfi -i anullsrc=r=48000:cl=stereo -t 40 "$WORK/silence.wav"
   paplay --client-name=SASCheck "$WORK/silence.wav" & TESTPID=$!
+  # a second stream started on a real device by the player itself (never moved by us): not excluded, no pin
+  DEVSINK=$(pactl list short sinks | awk '$2 !~ /^(effect_|input\.|output\.)/ {print $2; exit}')
+  if [ -n "$DEVSINK" ]; then paplay --client-name=SASCheckDev --device="$DEVSINK" "$WORK/silence.wav" & DEVPID=$!; fi
   # the exclude round trip moves the stream to the real output, which only works with surround as default
   if [ "$(pactl get-default-sink)" = effect_input.virtual-surround-7.1-hesuvi ]; then EXCL=1; else EXCL=0; fi
-  env -u WAYLAND_DISPLAY GDK_BACKEND=x11 GSK_RENDERER=cairo EXCL="$EXCL" PINS="$PINS" APPPY="$APPPY" \
+  env -u WAYLAND_DISPLAY GDK_BACKEND=x11 GSK_RENDERER=cairo EXCL="$EXCL" DEV="$DEVSINK" PINS="$PINS" APPPY="$APPPY" \
     timeout 60 xvfb-run -a -s "-screen 0 1280x900x24" python3 -u - <<'PY'
 import gi, importlib.util, os, sys, time
 gi.require_version("Gtk", "4.0")
@@ -133,11 +138,11 @@ def wait(cond, secs):
         time.sleep(0.05)
     return False
 
-def row():
-    return next((r for r in win.app_rows if r.get_title() == "SASCheck"), None)
+def row(name="SASCheck"):
+    return next((r for r in win.app_rows if r.get_title() == name), None)
 
-def pinned():
-    try: return any(l.startswith("Output/Audio:application.name:SASCheck=") and '"target"' in l
+def pinned(name="SASCheck"):
+    try: return any(l.startswith("Output/Audio:application.name:" + name + "=") and '"target"' in l
                     for l in open(os.environ["PINS"]))
     except OSError: return False
 
@@ -158,12 +163,26 @@ result(win is not None and win.hrir_row.get_model().get_n_items() > 0, "GUI: win
 result(wait(lambda: any(l.get_tooltip_text() for l in labels(win.hrir_row) if l.get_label()), 5),
        "GUI: HRIR dropdown list items have tooltips")
 result(wait(row, 4), "GUI: Apps shows a row for SASCheck")
+if os.environ["DEV"]:
+    result(wait(lambda: row("SASCheckDev"), 4), "GUI: Apps shows a row for the --device stream")
+    d = row("SASCheckDev")
+    result(d is not None and not pinned("SASCheckDev"), "--device stream leaves no WirePlumber target")
+    result(d is not None and not d.get_active() and (d.get_subtitle() or "").startswith("Routed to "),
+           "--device stream: switch off, subtitle says Routed to")
+    cli = os.popen("python3 " + os.environ["APPPY"] + " --apps").read().splitlines()
+    result(any(l.startswith("SASCheckDev") and "Routed to" in l for l in cli), "--apps: --device stream is Routed to, not excluded")
+else:
+    print("SKIP  --device stream: no real output sink")
 if os.environ["EXCL"] == "1" and row():
     row().set_active(True)
     result(wait(pinned, 6), "exclude on: SASCheck pinned in WirePlumber state")
-    wait(lambda: row() is not None and row().get_active(), 3)
+    result(wait(lambda: row() is not None and row().get_active()
+                and (row().get_subtitle() or "").startswith("Excluded: plain stereo on "), 4),
+           "exclude on: switch on, subtitle says Excluded")
     row().set_active(False)
     result(wait(lambda: not pinned(), 6), "exclude off: pin cleared")
+    result(wait(lambda: row() is not None and not row().get_active() and row().get_subtitle() == "Virtual surround", 4),
+           "exclude off: switch off, subtitle says Virtual surround")
 else:
     print("SKIP  exclude round trip: surround is not the default output (or no SASCheck row)")
 sys.exit(0 if ok else 1)
@@ -171,6 +190,7 @@ PY
   rc=$?
   [ $rc -eq 0 ] || FAILS=$((FAILS+1))
   kill "$TESTPID" 2>/dev/null; wait "$TESTPID" 2>/dev/null; TESTPID=
+  [ -z "$DEVPID" ] || { kill "$DEVPID" 2>/dev/null; wait "$DEVPID" 2>/dev/null; DEVPID=; }
 fi
 
 [ $FAILS -eq 0 ] && echo "ALL CHECKS PASSED" || echo "$FAILS CHECK(S) FAILED"

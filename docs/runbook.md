@@ -170,7 +170,7 @@ pactl list short sink-inputs   # the game's line should say 8ch
 Music through the virtual sink plays from two virtual front speakers and sounds duller than plain stereo. Exclude the player once and it always plays straight to the output device, while games keep the surround.
 
 1. Start the music so the player is playing sound.
-2. In the app's **Apps** section, turn on the **Exclude** switch next to it. The list updates by itself every second.
+2. In the app's **Apps** section, turn on the **Exclude** switch next to it. The list updates by itself every second. A row says "Routed to ... by another app" (switch off) when something else, for example an audio effects app, moved the stream to another device; that is not an exclusion and the switch does not change it.
 3. Turning the switch off sends it back to virtual surround.
 
 The choice is stored by WirePlumber per app name, the same as moving the app to another device in the desktop's volume applet. It can be set only while virtual surround is the default output, and only for apps that are playing sound. A browser is excluded as a whole, including browser games and videos in it.
@@ -221,7 +221,7 @@ rm ~/.local/bin/spatial-audio-switcher ~/.local/share/applications/io.github.sea
 | Rear sounds seem to come from the front | `pactl list short sink-inputs` shows 2ch | The game is in stereo mode: set it to 7.1. If it is 8ch, try another technology; front/back perception differs per head. |
 | Hollow, phasey, echoey sound | Game and device menus | Turn off in-game HRTF and any surround mode of the monitor, receiver or headset. |
 | Music sounds dull | Default output is the virtual sink | Stereo music plays from two virtual front speakers. Exclude the player in **Apps** (or `--exclude <app>`), or use `--off`. |
-| An app plays plain stereo although it should not | `spatial-audio-switcher --apps` says excluded | `--include <app>` while it plays, or turn off its **Exclude** switch in the app. |
+| An app plays plain stereo although it should not | `spatial-audio-switcher --apps` says "Excluded: plain stereo on ..." | `--include <app>` while it plays, or turn off its **Exclude** switch in the app. |
 | No sound after an output device change | `spatial-audio-switcher --outputs` | The output name changed: `--apply atmos <new-output>`. |
 | "unexpected format" on Apply | A PipeWire update changed its example config | Compare `/usr/share/pipewire/filter-chain/sink-virtual-surround-7.1-hesuvi.conf` with `write_pipewire_conf()` in the app. |
 

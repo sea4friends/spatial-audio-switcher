@@ -171,18 +171,57 @@ def system_output(names):
     return current if current in names else next(iter(names), None)
 
 
+PINS_FILE = Path.home() / ".local/state/wireplumber/stream-properties"
+PIN_PREFIX = "Output/Audio:application.name:"
+
+
+def pinned_apps():
+    """Names of apps WirePlumber has a per-app target for (what moving an app to a device leaves behind).
+    A line is PREFIX<app name>={json}; the name may contain '=' or ':' so split at the '={'."""
+    names = set()
+    try:
+        lines = PINS_FILE.read_text(errors="replace").splitlines()
+    except OSError:
+        return names
+    for line in lines:
+        if line.startswith(PIN_PREFIX) and "={" in line:
+            name, _, js = line[len(PIN_PREFIX):].partition("={")
+            try:
+                if json.loads("{" + js).get("target"):
+                    names.add(name)
+            except ValueError:
+                pass
+    return names
+
+
 def app_streams():
-    """Apps playing sound right now: {application name: (sink-input ids, excluded)}.
-    Excluded = plays straight to a real device instead of the virtual surround sink."""
-    sinks = {s["index"]: s["name"] for s in json.loads(run(["pactl", "-f", "json", "list", "sinks"]).stdout)}
+    """Apps playing sound right now: {application name: (sink-input ids, excluded, subtitle)}.
+    Excluded = WirePlumber has a pin for the app. A stream on another sink without a pin was routed there
+    by another app (e.g. an effects chain): shown, but not as excluded."""
+    sinks = {s["index"]: s for s in json.loads(run(["pactl", "-f", "json", "list", "sinks"]).stdout)}
+    pins = pinned_apps()
     apps = {}
     for s in json.loads(run(["pactl", "-f", "json", "list", "sink-inputs"]).stdout):
         name = s["properties"].get("application.name")
         if not name:
             continue
-        ids, excluded = apps.get(name, ([], False))
-        apps[name] = (ids + [s["index"]], excluded or sinks.get(s["sink"]) != VIRTUAL_SINK)
-    return apps
+        sink = sinks.get(s["sink"], {})
+        away = sink.get("name") != VIRTUAL_SINK
+        desc = sink.get("description") or sink.get("name") or "another device"
+        ids, _, shown = apps.get(name, ([], False, None))
+        if away or shown is None:
+            shown = desc if away else None
+        apps[name] = (ids + [s["index"]], name in pins, shown)
+    out = {}
+    for name, (ids, pinned, shown) in apps.items():
+        if pinned:
+            sub = f"Excluded: plain stereo on {shown}" if shown else "Excluded"
+        elif shown:
+            sub = f"Routed to {shown} by another app"
+        else:
+            sub = "Virtual surround"
+        out[name] = (ids, pinned, sub)
+    return out
 
 
 def set_excluded(name, excluded, output):
@@ -191,7 +230,7 @@ def set_excluded(name, excluded, output):
     default again. That is also why this works only while virtual surround is the default output."""
     if default_sink() != VIRTUAL_SINK:
         raise RuntimeError("Turn on virtual surround as the default output first")
-    ids, _ = app_streams().get(name, ([], False))
+    ids = app_streams().get(name, ([],))[0]
     if not ids:
         raise RuntimeError(f"{name} is not playing sound right now")
     for i in ids:
@@ -447,7 +486,7 @@ class Window(Adw.ApplicationWindow):
             if force:
                 self.toast(f"Cannot list apps: {e}")
             return GLib.SOURCE_CONTINUE
-        seen = {name: excluded for name, (_, excluded) in apps.items()}
+        seen = {name: (excluded, sub) for name, (_, excluded, sub) in apps.items()}
         if not force and seen == self.apps_seen:
             return GLib.SOURCE_CONTINUE
         self.apps_seen = seen
@@ -456,9 +495,9 @@ class Window(Adw.ApplicationWindow):
         self.app_rows = []
         if not apps:
             self.app_rows.append(Adw.ActionRow(title="No app is playing sound", sensitive=False))
-        for name, (_, excluded) in sorted(apps.items(), key=lambda a: a[0].lower()):
+        for name, (_, excluded, sub) in sorted(apps.items(), key=lambda a: a[0].lower()):
             row = Adw.SwitchRow(title=GLib.markup_escape_text(name), active=excluded,
-                                subtitle="Plain stereo" if excluded else "Virtual surround")
+                                subtitle=GLib.markup_escape_text(sub))
             row.connect("notify::active", self.on_exclude, name)
             self.app_rows.append(row)
         for row in self.app_rows:
@@ -636,8 +675,8 @@ def cli(args):
         save_state(state)
         print(f"Applied {key} -> {target}; default output is now the virtual surround sink")
     elif cmd == "--apps":
-        for name, (_, excluded) in app_streams().items():
-            print(f"{name:40s} {'excluded: plain stereo' if excluded else 'virtual surround'}")
+        for name, (_, _, sub) in app_streams().items():
+            print(f"{name:40s} {sub}")
     elif cmd in ("--exclude", "--include") and len(args) == 2:
         output = state.get("output") or system_output([n for n, _ in hardware_sinks()])
         set_excluded(args[1], cmd == "--exclude", output)
